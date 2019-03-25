@@ -10,7 +10,7 @@ var seckill = {
 			return "/seckill/seckill/"+seckillId+"/getSeckillURL";
 		},
 		executionURL:function(seckillId,md5){
-			return "/seckill/seckill/"+seckillId+"/"+md5+"/execution";
+			return "/seckill/seckill/"+seckillId+"/"+md5+"/executionByProcedure";
 		}
 	},
 	exportSeckill:function(seckillId,seckillBox){

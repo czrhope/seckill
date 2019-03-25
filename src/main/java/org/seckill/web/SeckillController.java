@@ -6,6 +6,9 @@ import java.util.List;
 import org.seckill.dto.Exposer;
 import org.seckill.dto.SeckillExecution;
 import org.seckill.entity.Seckill;
+import org.seckill.enums.SeckillStateEnum;
+import org.seckill.exception.RepeatKillException;
+import org.seckill.exception.SeckillCloseException;
 import org.seckill.service.SeckillService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +38,7 @@ public class SeckillController {
 	@RequestMapping(value="/list",method=RequestMethod.GET )
 	public String list(Model model) {
 		
+		//list.jsp + model = ModelAndView
 		//List<Seckill> seckillList = seckillService.getSeckillList();
 		List<Seckill> seckillList = seckillService.getSeckillListByRedisTemplate("seckillList", 0l, 3l);
 		model.addAttribute("seckillList", seckillList);
@@ -91,9 +95,29 @@ public class SeckillController {
 	}
 	
 	/**
-	 * 执行秒杀
+	 * 通过mysql存储过程执行秒杀
 	 * @param md5
 	 * @param seckillId
+	 * @return
+	 */
+	@RequestMapping(value="/{seckillId}/{md5}/executionByProcedure",method=RequestMethod.POST,
+			produces= {"application/json;charset=utf-8"})
+	@ResponseBody
+	public SeckillExecution executeSeckillByProcedure(@PathVariable("md5") String md5,
+											@PathVariable("seckillId") Long seckillId,
+											@CookieValue("seckillPhone") Long seckillPhone) {
+		
+		SeckillExecution seckillExecution;			
+		seckillExecution = seckillService.executeSeckillByProcedure(seckillId, seckillPhone, md5);
+		return seckillExecution;
+	}
+	
+	
+	/**
+	 * 普通秒杀，并发量不高
+	 * @param md5
+	 * @param seckillId
+	 * @param seckillPhone
 	 * @return
 	 */
 	@RequestMapping(value="/{seckillId}/{md5}/execution",method=RequestMethod.POST,
@@ -103,8 +127,16 @@ public class SeckillController {
 											@PathVariable("seckillId") Long seckillId,
 											@CookieValue("seckillPhone") Long seckillPhone) {
 		
-		SeckillExecution seckillExecution;			
-		seckillExecution = seckillService.executeSeckillByProcedure(seckillId, seckillPhone, md5);
+		SeckillExecution seckillExecution;
+		try {
+			seckillExecution = seckillService.executeSeckill(seckillId, seckillPhone, md5);
+		}catch(SeckillCloseException e) {
+			return new SeckillExecution(seckillId, SeckillStateEnum.FAILED);
+		}catch(RepeatKillException e) {
+			return new SeckillExecution(seckillId,SeckillStateEnum.REPEAT_KILL);
+		}catch(Exception e) {
+			return new SeckillExecution(seckillId,SeckillStateEnum.SYSTEM_ERROR);
+		}
 		return seckillExecution;
 	}
 }
